@@ -1,0 +1,131 @@
+﻿import os
+
+
+print("1. feladat")
+auto_id = input("Kérem adja meg az autó azonosítóját! ")
+fajlnev = f"{auto_id}.txt"
+
+
+adatok = []
+
+
+if os.path.exists(fajlnev):
+    with open(fajlnev, "r", encoding="utf-8") as f:
+        for sor in f:
+            if sor.strip():
+                # A fájlban tabulátorral (\t) elválasztott egész számok vannak
+                t_kezdet, t_veg, v_veg = map(int, sor.split("\t"))
+                adatok.append({
+                    "t_kezdet": t_kezdet,
+                    "t_veg": t_veg,
+                    "v_veg": v_veg
+                })
+else:
+    print(f"Hiba: A(z) {fajlnev} fájl nem található a program mellett!")
+    exit()
+
+
+print("\n2. feladat")
+indulas_ido = adatok[0]["t_kezdet"]
+veg_sebesseg = adatok[-1]["v_veg"]
+
+
+print(f"Az autó a {indulas_ido}. másodpercben indult el.")
+print(f"Az autó a megfigyelés végén {veg_sebesseg} m/s sebességgel haladt.")
+
+
+print("\n3. feladat")
+atlepte = False
+for sor in adatok:
+    if sor["v_veg"] > 14:
+        atlepte = True
+        break
+
+
+if atlepte:
+    print("Az autó átlépte a sebességhatárt.")
+else:
+    print("Az autó nem lépte túl a sebességhatárt.")
+
+
+print("\n4. feladat")
+# Alapértelmezetten a legelső állás: a 0. másodperctől az első indulásig
+max_idotartam = adatok[0]["t_kezdet"] - 0
+max_kezdet = 0
+max_veg = adatok[0]["t_kezdet"]
+
+
+# Sorok közötti állások vizsgálata (ha az előző végén 0-val állt meg)
+for i in range(len(adatok) - 1):
+    if adatok[i]["v_veg"] == 0:
+        aktualis_allásidő = adatok[i+1]["t_kezdet"] - adatok[i]["t_veg"]
+        if aktualis_allásidő > max_idotartam:
+            max_idotartam = aktualis_allásidő
+            max_kezdet = adatok[i]["t_veg"]
+            max_veg = adatok[i+1]["t_kezdet"]
+
+
+print(f"A leghosszabb állásidő {max_kezdet} és {max_veg} másodperc között volt.")
+
+
+print("\n5. feladat")
+t_keresett = int(input("Mikor vizsgáljuk az autó sebességét? "))
+v_pillanatnyi = 0.0
+
+
+for i in range(len(adatok)):
+    sor = adatok[i]
+    v_elozo = 0 if i == 0 else adatok[i-1]["v_veg"]
+    
+    # A: Gyorsuló / lassuló szakaszban van az időpont
+    if sor["t_kezdet"] <= t_keresett <= sor["t_veg"]:
+        # Lineáris interpoláció a megadott képlet alapján:
+        v_pillanatnyi = v_elozo + ((sor["v_veg"] - v_elozo) / (sor["t_veg"] - sor["t_kezdet"])) * (t_keresett - sor["t_kezdet"])
+        break
+        
+    # B: Két változási szakasz között van (állandó sebességgel halad)
+    if i < len(adatok) - 1 and sor["t_veg"] < t_keresett < adatok[i+1]["t_kezdet"]:
+        v_pillanatnyi = float(sor["v_veg"])
+        break
+
+
+print(f"Az autó sebessége a(z) {t_keresett}. másodpercben {v_pillanatnyi:.1f} m/s volt.")
+
+
+print("\n6. feladat")
+osszes_ut = 0.0
+
+
+for i in range(len(adatok)):
+    sor = adatok[i]
+    v_elozo = 0 if i == 0 else adatok[i-1]["v_veg"]
+    
+    # 1. Változó sebességű szakasz útja: ((v1 + v2) / 2) * delta_t
+    ut_valtozo = ((v_elozo + sor["v_veg"]) / 2) * (sor["t_veg"] - sor["t_kezdet"])
+    osszes_ut += ut_valtozo
+    
+    # 2. Állandó sebességű szakasz útja (ha van szünet a következő gyorsulásig)
+    if i < len(adatok) - 1:
+        ut_allando = sor["v_veg"] * (adatok[i+1]["t_kezdet"] - sor["t_veg"])
+        osszes_ut += ut_allando
+
+
+print(f"A megtett út: {osszes_ut:.1f} méter.")
+
+
+kimenet_fajlnev = f"v{auto_id}.txt"
+with open(kimenet_fajlnev, "w", encoding="utf-8") as kf:
+    # Kezdőállapot: a 0. másodpercben áll
+    kf.write("0\t0\n")
+    
+    for i in range(len(adatok)):
+        sor = adatok[i]
+        v_elozo = 0 if i == 0 else adatok[i-1]["v_veg"]
+        
+        # A sebességváltozás kezdete (időpont és a változás előtti sebesség)
+        kf.write(f"{sor['t_kezdet']}\t{v_elozo}\n")
+        # A sebességváltozás vége (időpont és az új sebesség)
+        kf.write(f"{sor['t_veg']}\t{sor['v_veg']}\n")
+
+
+print(f"\n(A(z) {kimenet_fajlnev} fájl sikeresen elkészült a 7. feladathoz!)")
